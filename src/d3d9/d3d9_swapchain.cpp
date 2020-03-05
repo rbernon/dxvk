@@ -802,6 +802,7 @@ namespace dxvk {
     presenterDesc.imageCount      = PickImageCount(m_presentParams.BackBufferCount + 1);
     presenterDesc.numFormats      = PickFormats(EnumerateFormat(m_presentParams.BackBufferFormat), presenterDesc.formats);
     presenterDesc.numPresentModes = PickPresentModes(Vsync, presenterDesc.presentModes);
+    presenterDesc.monitor         = GetDefaultMonitor();
     presenterDesc.fullScreenExclusive = PickFullscreenMode();
 
     if (m_presenter->recreateSwapChain(presenterDesc) != VK_SUCCESS)
@@ -830,6 +831,7 @@ namespace dxvk {
     presenterDesc.imageCount      = PickImageCount(m_presentParams.BackBufferCount + 1);
     presenterDesc.numFormats      = PickFormats(EnumerateFormat(m_presentParams.BackBufferFormat), presenterDesc.formats);
     presenterDesc.numPresentModes = PickPresentModes(false, presenterDesc.presentModes);
+    presenterDesc.monitor         = GetDefaultMonitor();
     presenterDesc.fullScreenExclusive = PickFullscreenMode();
 
     m_presenter = new vk::Presenter(m_window,
