@@ -825,6 +825,7 @@ namespace dxvk {
     presenterDevice.queueFamily   = graphicsQueue.queueFamily;
     presenterDevice.queue         = graphicsQueue.queueHandle;
     presenterDevice.adapter       = m_device->adapter()->handle();
+    presenterDevice.features.fullScreenExclusive = m_device->extensions().extFullScreenExclusive;
 
     vk::PresenterDesc presenterDesc;
     presenterDesc.imageExtent     = GetPresentExtent();
@@ -1253,19 +1254,26 @@ namespace dxvk {
       Logger::err("D3D9: EnterFullscreenMode: Failed to change display mode");
       return D3DERR_INVALIDCALL;
     }
-    
-    // Change the window flags to remove the decoration etc.
-    LONG style   = ::GetWindowLongW(m_window, GWL_STYLE);
-    LONG exstyle = ::GetWindowLongW(m_window, GWL_EXSTYLE);
-    
-    m_windowState.style = style;
-    m_windowState.exstyle = exstyle;
-    
-    style   &= ~WS_OVERLAPPEDWINDOW;
-    exstyle &= ~WS_EX_OVERLAPPEDWINDOW;
-    
-    ::SetWindowLongW(m_window, GWL_STYLE, style);
-    ::SetWindowLongW(m_window, GWL_EXSTYLE, exstyle);
+
+    m_windowState.fullScreenExclusive = true;
+    UpdatePresentRegion(nullptr, nullptr);
+    RecreateSwapChain(m_vsync);
+
+    if (m_presenter->info().fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT) {
+      // Change the window flags to remove the decoration etc.
+      LONG style   = ::GetWindowLongW(m_window, GWL_STYLE);
+      LONG exstyle = ::GetWindowLongW(m_window, GWL_EXSTYLE);
+      
+      m_windowState.style = style;
+      m_windowState.exstyle = exstyle;
+      m_windowState.fullScreenExclusive = false;
+      
+      style   &= ~WS_OVERLAPPEDWINDOW;
+      exstyle &= ~WS_EX_OVERLAPPEDWINDOW;
+      
+      ::SetWindowLongW(m_window, GWL_STYLE, style);
+      ::SetWindowLongW(m_window, GWL_EXSTYLE, exstyle);
+    }
     
     // Move the window so that it covers the entire output    
     RECT rect;
@@ -1288,16 +1296,22 @@ namespace dxvk {
       Logger::warn("D3D9: LeaveFullscreenMode: Failed to restore display mode");
     
     m_monitor = nullptr;
-    
-    // Only restore the window style if the application hasn't
-    // changed them. This is in line with what native D3D9 does.
-    LONG curStyle   = ::GetWindowLongW(m_window, GWL_STYLE) & ~WS_VISIBLE;
-    LONG curExstyle = ::GetWindowLongW(m_window, GWL_EXSTYLE) & ~WS_EX_TOPMOST;
-    
-    if (curStyle == (m_windowState.style & ~(WS_VISIBLE | WS_OVERLAPPEDWINDOW))
-     && curExstyle == (m_windowState.exstyle & ~(WS_EX_TOPMOST | WS_EX_OVERLAPPEDWINDOW))) {
-      ::SetWindowLongW(m_window, GWL_STYLE,   m_windowState.style);
-      ::SetWindowLongW(m_window, GWL_EXSTYLE, m_windowState.exstyle);
+
+    if (m_presenter->info().fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT) {
+      m_windowState.fullScreenExclusive = false;
+      UpdatePresentRegion(nullptr, nullptr);
+      RecreateSwapChain(m_vsync);
+    } else {
+      // Only restore the window style if the application hasn't
+      // changed them. This is in line with what native D3D9 does.
+      LONG curStyle   = ::GetWindowLongW(m_window, GWL_STYLE) & ~WS_VISIBLE;
+      LONG curExstyle = ::GetWindowLongW(m_window, GWL_EXSTYLE) & ~WS_EX_TOPMOST;
+      
+      if (curStyle == (m_windowState.style & ~(WS_VISIBLE | WS_OVERLAPPEDWINDOW))
+       && curExstyle == (m_windowState.exstyle & ~(WS_EX_TOPMOST | WS_EX_OVERLAPPEDWINDOW))) {
+        ::SetWindowLongW(m_window, GWL_STYLE,   m_windowState.style);
+        ::SetWindowLongW(m_window, GWL_EXSTYLE, m_windowState.exstyle);
+      }
     }
     
     // Restore window position and apply the style
@@ -1402,7 +1416,9 @@ namespace dxvk {
   VkFullScreenExclusiveEXT D3D9SwapChainEx::PickFullscreenMode() {
     return m_dialog
       ? VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT
-      : VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT;
+      : m_windowState.fullScreenExclusive
+        ? VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT
+        : VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT;
   }
 
 
