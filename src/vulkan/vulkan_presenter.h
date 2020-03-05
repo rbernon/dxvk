@@ -41,6 +41,7 @@ namespace dxvk::vk {
     VkPresentModeKHR    presentMode;
     VkExtent2D          imageExtent;
     uint32_t            imageCount;
+    VkFullScreenExclusiveEXT fullScreenExclusive;
   };
 
   /**

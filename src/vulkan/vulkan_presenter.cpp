@@ -103,8 +103,57 @@ namespace dxvk::vk {
     std::vector<VkPresentModeKHR>   modes;
 
     VkResult status;
+
+    VkSurfaceFullScreenExclusiveWin32InfoEXT fullScreenInfoWin32;
+    fullScreenInfoWin32.sType       = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT;
+    fullScreenInfoWin32.pNext       = nullptr;
+    fullScreenInfoWin32.hmonitor    = desc.monitor;
+
+    VkSurfaceFullScreenExclusiveInfoEXT fullScreenInfo;
+    fullScreenInfo.sType            = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
+    fullScreenInfo.pNext            = nullptr;
+    fullScreenInfo.fullScreenExclusive = desc.fullScreenExclusive;
     
-    if ((status = m_vki->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+    if (m_device.features.fullScreenExclusive) {
+      VkSurfaceCapabilitiesFullScreenExclusiveEXT fullScreenCaps;
+      VkPhysicalDeviceSurfaceInfo2KHR surfaceInfo2;
+      VkSurfaceCapabilities2KHR surfaceCaps2;
+
+      fullScreenCaps.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_FULL_SCREEN_EXCLUSIVE_EXT;
+      fullScreenCaps.pNext = NULL;
+      fullScreenCaps.fullScreenExclusiveSupported = VK_TRUE;
+
+      fullScreenInfo.pNext = &fullScreenInfoWin32;
+
+      surfaceInfo2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
+      surfaceInfo2.pNext = &fullScreenInfo;
+      surfaceInfo2.surface = m_surface;
+
+      surfaceCaps2.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR;
+      surfaceCaps2.pNext = &fullScreenCaps;
+
+      if ((status = m_vki->vkGetPhysicalDeviceSurfaceCapabilities2KHR(
+          m_device.adapter, &surfaceInfo2, &surfaceCaps2)) != VK_SUCCESS) {
+        if (status == VK_ERROR_SURFACE_LOST_KHR) {
+          // Recreate the surface and try again.
+          if (m_surface)
+            destroySurface();
+          if ((status = createSurface()) != VK_SUCCESS)
+            return status;
+          surfaceInfo2.surface = m_surface;
+          status = m_vki->vkGetPhysicalDeviceSurfaceCapabilities2KHR(
+              m_device.adapter, &surfaceInfo2, &surfaceCaps2);
+        }
+        if (status != VK_SUCCESS)
+          return status;
+      }
+
+      caps = surfaceCaps2.surfaceCapabilities;
+      if (fullScreenCaps.fullScreenExclusiveSupported)
+        m_info.fullScreenExclusive = desc.fullScreenExclusive;
+      else
+        m_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT;
+    } else if ((status = m_vki->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
         m_device.adapter, m_surface, &caps)) != VK_SUCCESS) {
       if (status == VK_ERROR_SURFACE_LOST_KHR) {
         // Recreate the surface and try again.
@@ -117,6 +166,7 @@ namespace dxvk::vk {
       }
       if (status != VK_SUCCESS)
         return status;
+      m_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT;
     }
 
     if ((status = getSupportedFormats(formats, desc)) != VK_SUCCESS)
@@ -136,11 +186,6 @@ namespace dxvk::vk {
       m_info.format     = { VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
       return VK_SUCCESS;
     }
-
-    VkSurfaceFullScreenExclusiveInfoEXT fullScreenInfo;
-    fullScreenInfo.sType            = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
-    fullScreenInfo.pNext            = nullptr;
-    fullScreenInfo.fullScreenExclusive = desc.fullScreenExclusive;
 
     VkSwapchainCreateInfoKHR swapInfo;
     swapInfo.sType                  = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -163,7 +208,7 @@ namespace dxvk::vk {
     swapInfo.clipped                = VK_TRUE;
     swapInfo.oldSwapchain           = VK_NULL_HANDLE;
 
-    if (m_device.features.fullScreenExclusive)
+    if (m_info.fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT)
       swapInfo.pNext = &fullScreenInfo;
 
     Logger::info(str::format(
@@ -172,7 +217,7 @@ namespace dxvk::vk {
       "\n  Present mode: ", m_info.presentMode,
       "\n  Buffer size:  ", m_info.imageExtent.width, "x", m_info.imageExtent.height,
       "\n  Image count:  ", m_info.imageCount,
-      "\n  Exclusive FS: ", desc.fullScreenExclusive));
+      "\n  Exclusive FS: ", m_info.fullScreenExclusive));
     
     if ((status = m_vkd->vkCreateSwapchainKHR(m_vkd->device(),
         &swapInfo, nullptr, &m_swapchain)) != VK_SUCCESS)
