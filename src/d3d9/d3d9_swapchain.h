@@ -97,6 +97,7 @@ namespace dxvk {
       LONG style   = 0;
       LONG exstyle = 0;
       RECT rect    = { 0, 0, 0, 0 };
+      bool fullScreenExclusive = false;
     };
 
     D3DPRESENT_PARAMETERS   m_presentParams;

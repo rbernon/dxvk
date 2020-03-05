@@ -1368,7 +1368,10 @@ namespace dxvk {
     if (pDestRect == nullptr) {
       // TODO: Should we hook WM_SIZE message for this?
       UINT width, height;
-      GetWindowClientSize(m_window, &width, &height);
+      if (m_windowState.fullScreenExclusive)
+        GetMonitorClientSize(GetDefaultMonitor(), &width, &height);
+      else
+        GetWindowClientSize(m_window, &width, &height);
 
       dstRect.top    = 0;
       dstRect.left   = 0;
