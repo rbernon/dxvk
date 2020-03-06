@@ -208,6 +208,11 @@ namespace dxvk::vk {
     swapInfo.clipped                = VK_TRUE;
     swapInfo.oldSwapchain           = VK_NULL_HANDLE;
 
+    if (desc.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT)
+      fullScreenInfo.pNext = &fullScreenInfoWin32;
+    else
+      fullScreenInfo.pNext = nullptr;
+
     if (m_info.fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT)
       swapInfo.pNext = &fullScreenInfo;
 
@@ -292,10 +297,18 @@ namespace dxvk::vk {
   VkResult Presenter::getSupportedFormats(std::vector<VkSurfaceFormatKHR>& formats, const PresenterDesc& desc) {
     uint32_t numFormats = 0;
 
+    VkSurfaceFullScreenExclusiveWin32InfoEXT fullScreenInfoWin32;
+    fullScreenInfoWin32.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT;
+    fullScreenInfoWin32.pNext = nullptr;
+    fullScreenInfoWin32.hmonitor = desc.monitor;
+
     VkSurfaceFullScreenExclusiveInfoEXT fullScreenInfo;
     fullScreenInfo.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
     fullScreenInfo.pNext = nullptr;
     fullScreenInfo.fullScreenExclusive = desc.fullScreenExclusive;
+
+    if (desc.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT)
+      fullScreenInfo.pNext = &fullScreenInfoWin32;
 
     VkPhysicalDeviceSurfaceInfo2KHR surfaceInfo;
     surfaceInfo.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
@@ -338,10 +351,18 @@ namespace dxvk::vk {
   VkResult Presenter::getSupportedPresentModes(std::vector<VkPresentModeKHR>& modes, const PresenterDesc& desc) {
     uint32_t numModes = 0;
 
+    VkSurfaceFullScreenExclusiveWin32InfoEXT fullScreenInfoWin32;
+    fullScreenInfoWin32.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT;
+    fullScreenInfoWin32.pNext = nullptr;
+    fullScreenInfoWin32.hmonitor = desc.monitor;
+
     VkSurfaceFullScreenExclusiveInfoEXT fullScreenInfo;
     fullScreenInfo.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
     fullScreenInfo.pNext = nullptr;
     fullScreenInfo.fullScreenExclusive = desc.fullScreenExclusive;
+
+    if (desc.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT)
+      fullScreenInfo.pNext = &fullScreenInfoWin32;
 
     VkPhysicalDeviceSurfaceInfo2KHR surfaceInfo;
     surfaceInfo.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
