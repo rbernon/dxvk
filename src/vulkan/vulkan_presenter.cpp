@@ -250,6 +250,9 @@ namespace dxvk::vk {
     if ((status = m_vkd->vkCreateSwapchainKHR(m_vkd->device(),
         &swapInfo, nullptr, &m_swapchain)) != VK_SUCCESS)
       return status;
+
+    if (m_info.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT)
+      m_vkd->vkAcquireFullScreenExclusiveModeEXT(m_vkd->device(), m_swapchain);
     
     // Acquire images and create views
     std::vector<VkImage> images;
@@ -315,7 +318,6 @@ namespace dxvk::vk {
     m_frameIndex = 0;
     return VK_SUCCESS;
   }
-
 
   VkResult Presenter::getSupportedFormats(std::vector<VkSurfaceFormatKHR>& formats, const PresenterDesc& desc) {
     uint32_t numFormats = 0;
@@ -568,6 +570,8 @@ namespace dxvk::vk {
       m_vkd->vkDestroySemaphore(m_vkd->device(), sem.present, nullptr);
     }
 
+    if (m_info.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT)
+      m_vkd->vkReleaseFullScreenExclusiveModeEXT(m_vkd->device(), m_swapchain);
     m_vkd->vkDestroySwapchainKHR(m_vkd->device(), m_swapchain, nullptr);
 
     m_images.clear();
