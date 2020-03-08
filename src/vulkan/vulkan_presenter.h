@@ -247,6 +247,10 @@ namespace dxvk::vk {
 
     void destroySurface();
 
+    void hookWindowProc();
+
+    void resetWindowProc();
+
   };
 
 }

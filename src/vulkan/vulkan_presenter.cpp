@@ -4,6 +4,23 @@
 
 namespace dxvk::vk {
 
+  static std::unordered_map<HWND, WNDPROC> windowProcMap;
+
+  static LRESULT CALLBACK WindowProcA(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+  {
+      if (message == WM_NCCALCSIZE && wparam == TRUE)
+        return 0;
+      return CallWindowProcA(windowProcMap[window], window, message, wparam, lparam);
+  }
+
+  static LRESULT CALLBACK WindowProcW(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+  {
+      if (message == WM_NCCALCSIZE && wparam == TRUE)
+        return 0;
+      return CallWindowProcW(windowProcMap[window], window, message, wparam, lparam);
+  }
+
+
   Presenter::Presenter(
           HWND            window,
     const Rc<InstanceFn>& vki,
@@ -131,6 +148,12 @@ namespace dxvk::vk {
 
       surfaceCaps2.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR;
       surfaceCaps2.pNext = &fullScreenCaps;
+
+      // On Windows, vkAcquireFullScreenExclusiveModeEXT is not enough to get rid of window
+      // decorations, and D3D9 should not touch window styles either as some game may spuriously
+      // restore them. MSDN says we have to hook WM_NCCALCSIZE instead.
+      if (desc.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT)
+        hookWindowProc();
 
       if ((status = m_vki->vkGetPhysicalDeviceSurfaceCapabilities2KHR(
           m_device.adapter, &surfaceInfo2, &surfaceCaps2)) != VK_SUCCESS) {
@@ -534,6 +557,8 @@ namespace dxvk::vk {
 
 
   void Presenter::destroySwapchain() {
+    resetWindowProc();
+
     for (const auto& img : m_images)
       m_vkd->vkDestroyImageView(m_vkd->device(), img.view, nullptr);
     
@@ -554,6 +579,27 @@ namespace dxvk::vk {
 
   void Presenter::destroySurface() {
     m_vki->vkDestroySurfaceKHR(m_vki->instance(), m_surface, nullptr);
+  }
+
+  void Presenter::hookWindowProc() {
+    resetWindowProc();
+    if (IsWindowUnicode(m_window)) {
+      windowProcMap[m_window] = (WNDPROC)SetWindowLongPtrW(m_window, GWLP_WNDPROC, (LONG_PTR)WindowProcW);
+    } else {
+      windowProcMap[m_window] = (WNDPROC)SetWindowLongPtrA(m_window, GWLP_WNDPROC, (LONG_PTR)WindowProcA);
+    }
+  }
+
+  void Presenter::resetWindowProc() {
+    if (IsWindowUnicode(m_window)) {
+      if ((WNDPROC)GetWindowLongPtrW(m_window, GWLP_WNDPROC) == WindowProcW)
+        SetWindowLongPtrW(m_window, GWLP_WNDPROC, (LONG_PTR)windowProcMap[m_window]);
+      windowProcMap.erase(m_window);
+    } else {
+      if ((WNDPROC)GetWindowLongPtrA(m_window, GWLP_WNDPROC) == WindowProcA)
+        SetWindowLongPtrA(m_window, GWLP_WNDPROC, (LONG_PTR)windowProcMap[m_window]);
+      windowProcMap.erase(m_window);
+    }
   }
 
 }
