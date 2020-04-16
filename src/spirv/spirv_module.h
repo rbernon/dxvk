@@ -1287,6 +1287,11 @@ namespace dxvk {
 
     std::vector<uint32_t> m_interfaceVars;
 
+    uint32_t defTypeUnique(
+            spv::Op                 op,
+            uint32_t                argCount,
+      const uint32_t*               argIds);
+
     uint32_t defType(
             spv::Op                 op, 
             uint32_t                argCount,

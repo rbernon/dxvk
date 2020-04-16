@@ -764,13 +764,8 @@ namespace dxvk {
   uint32_t SpirvModule::defArrayTypeUnique(
           uint32_t                typeId,
           uint32_t                length) {
-    uint32_t resultId = this->allocateId();
-    
-    m_typeConstDefs.putIns (spv::OpTypeArray, 4);
-    m_typeConstDefs.putWord(resultId);
-    m_typeConstDefs.putWord(typeId);
-    m_typeConstDefs.putWord(length);
-    return resultId;
+    std::array<uint32_t, 2> args = {{ typeId, length }};
+    return this->defTypeUnique(spv::OpTypeArray, args.size(), args.data());
   }
   
   
@@ -785,12 +780,8 @@ namespace dxvk {
   
   uint32_t SpirvModule::defRuntimeArrayTypeUnique(
           uint32_t                typeId) {
-    uint32_t resultId = this->allocateId();
-    
-    m_typeConstDefs.putIns (spv::OpTypeRuntimeArray, 3);
-    m_typeConstDefs.putWord(resultId);
-    m_typeConstDefs.putWord(typeId);
-    return resultId;
+    std::array<uint32_t, 1> args = {{ typeId }};
+    return this->defTypeUnique(spv::OpTypeRuntimeArray, args.size(), args.data());
   }
   
   
@@ -820,14 +811,7 @@ namespace dxvk {
   uint32_t SpirvModule::defStructTypeUnique(
           uint32_t                memberCount,
     const uint32_t*               memberTypes) {
-    uint32_t resultId = this->allocateId();
-    
-    m_typeConstDefs.putIns (spv::OpTypeStruct, 2 + memberCount);
-    m_typeConstDefs.putWord(resultId);
-    
-    for (uint32_t i = 0; i < memberCount; i++)
-      m_typeConstDefs.putWord(memberTypes[i]);
-    return resultId;
+    return this->defTypeUnique(spv::OpTypeStruct, memberCount, memberTypes);
   }
   
   
@@ -3691,6 +3675,20 @@ namespace dxvk {
       m_code.putWord(streamId);
     }
   }
+
+
+  uint32_t SpirvModule::defTypeUnique(
+          spv::Op                 op,
+          uint32_t                argCount,
+    const uint32_t*               argIds) {
+    uint32_t resultId = this->allocateId();
+    m_typeConstDefs.putIns (op, 2 + argCount);
+    m_typeConstDefs.putWord(resultId);
+
+    for (uint32_t i = 0; i < argCount; i++)
+      m_typeConstDefs.putWord(argIds[i]);
+    return resultId;
+  }
   
   
   void SpirvModule::opBeginInvocationInterlock() {
@@ -3722,13 +3720,7 @@ namespace dxvk {
     }
     
     // Type not yet declared, create a new one.
-    uint32_t resultId = this->allocateId();
-    m_typeConstDefs.putIns (op, 2 + argCount);
-    m_typeConstDefs.putWord(resultId);
-    
-    for (uint32_t i = 0; i < argCount; i++)
-      m_typeConstDefs.putWord(argIds[i]);
-    return resultId;
+    return this->defTypeUnique(op, argCount, argIds);
   }
   
   
