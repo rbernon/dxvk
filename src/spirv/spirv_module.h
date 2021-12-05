@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_set>
+#include <optional>
 
 #include "spirv_code_buffer.h"
 #include "spirv_compression.h"
