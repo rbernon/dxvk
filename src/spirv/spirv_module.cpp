@@ -703,12 +703,12 @@ namespace dxvk {
   
   
   uint32_t SpirvModule::defVoidType() {
-    return this->defType(spv::OpTypeVoid, 0, nullptr);
+    return this->defTypeCached(m_typeVoid, spv::OpTypeVoid, 0, nullptr);
   }
   
   
   uint32_t SpirvModule::defBoolType() {
-    return this->defType(spv::OpTypeBool, 0, nullptr);
+    return this->defTypeCached(m_typeBool[0], spv::OpTypeBool, 0, nullptr);
   }
   
   
@@ -716,6 +716,16 @@ namespace dxvk {
           uint32_t                width,
           uint32_t                isSigned) {
     std::array<uint32_t, 2> args = {{ width, isSigned }};
+    switch ((int64_t)width * (isSigned ? -1 : 1)) {
+    case -64: return this->defTypeCached(m_typeSInt64[0], spv::OpTypeInt, args.size(), args.data());
+    case -32: return this->defTypeCached(m_typeSInt32[0], spv::OpTypeInt, args.size(), args.data());
+    case -16: return this->defTypeCached(m_typeSInt16[0], spv::OpTypeInt, args.size(), args.data());
+    case  -8: return this->defTypeCached(m_typeSInt8[0],  spv::OpTypeInt, args.size(), args.data());
+    case  +8: return this->defTypeCached(m_typeUInt8[0],  spv::OpTypeInt, args.size(), args.data());
+    case +16: return this->defTypeCached(m_typeUInt16[0], spv::OpTypeInt, args.size(), args.data());
+    case +32: return this->defTypeCached(m_typeUInt32[0], spv::OpTypeInt, args.size(), args.data());
+    case +64: return this->defTypeCached(m_typeUInt64[0], spv::OpTypeInt, args.size(), args.data());
+    }
     return this->defType(spv::OpTypeInt,
       args.size(), args.data());
   }
@@ -724,6 +734,11 @@ namespace dxvk {
   uint32_t SpirvModule::defFloatType(
           uint32_t                width) {
     std::array<uint32_t, 1> args = {{ width }};
+    switch (width) {
+    case 16: return this->defTypeCached(m_typeFloat16[0], spv::OpTypeFloat, args.size(), args.data());
+    case 32: return this->defTypeCached(m_typeFloat32[0], spv::OpTypeFloat, args.size(), args.data());
+    case 64: return this->defTypeCached(m_typeFloat64[0], spv::OpTypeFloat, args.size(), args.data());
+    }
     return this->defType(spv::OpTypeFloat,
       args.size(), args.data());
   }
@@ -734,6 +749,43 @@ namespace dxvk {
           uint32_t                elementCount) {
     std::array<uint32_t, 2> args =
       {{ elementType, elementCount }};
+
+    if (elementType == m_typeBool[0])
+      return this->defTypeCached(m_typeBool[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeSInt8[0])
+      return this->defTypeCached(m_typeSInt8[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeSInt16[0])
+      return this->defTypeCached(m_typeSInt16[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeSInt32[0])
+      return this->defTypeCached(m_typeSInt32[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeSInt64[0])
+      return this->defTypeCached(m_typeSInt64[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeUInt8[0])
+      return this->defTypeCached(m_typeUInt8[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeUInt16[0])
+      return this->defTypeCached(m_typeUInt16[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeUInt32[0])
+      return this->defTypeCached(m_typeUInt32[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeUInt64[0])
+      return this->defTypeCached(m_typeUInt64[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeFloat16[0])
+      return this->defTypeCached(m_typeFloat16[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeFloat32[0])
+      return this->defTypeCached(m_typeFloat32[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
+    else if (elementType == m_typeFloat64[0])
+      return this->defTypeCached(m_typeFloat64[elementCount - 1],
+          spv::OpTypeVector, args.size(), args.data());
     
     return this->defType(spv::OpTypeVector,
       args.size(), args.data());
@@ -829,7 +881,7 @@ namespace dxvk {
   
   
   uint32_t SpirvModule::defSamplerType() {
-    return this->defType(spv::OpTypeSampler, 0, nullptr);
+    return this->defTypeCached(m_typeSampler, spv::OpTypeSampler, 0, nullptr);
   }
   
   
@@ -3674,6 +3726,17 @@ namespace dxvk {
       m_code.putIns (spv::OpEndStreamPrimitive, 2);
       m_code.putWord(streamId);
     }
+  }
+
+
+  uint32_t SpirvModule::defTypeCached(
+          uint32_t&               cache,
+          spv::Op                 op,
+          uint32_t                argCount,
+    const uint32_t*               argIds) {
+    if (!cache)
+      cache = this->defTypeUnique(op, argCount, argIds);
+    return cache;
   }
 
 

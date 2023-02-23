@@ -1283,10 +1283,32 @@ namespace dxvk {
     SpirvCodeBuffer m_variables;
     SpirvCodeBuffer m_code;
 
+    uint32_t m_typeVoid    = 0;
+    uint32_t m_typeSampler = 0;
+
+    std::array<uint32_t, 4> m_typeBool;
+    std::array<uint32_t, 4> m_typeSInt8;
+    std::array<uint32_t, 4> m_typeSInt16;
+    std::array<uint32_t, 4> m_typeSInt32;
+    std::array<uint32_t, 4> m_typeSInt64;
+    std::array<uint32_t, 4> m_typeUInt8;
+    std::array<uint32_t, 4> m_typeUInt16;
+    std::array<uint32_t, 4> m_typeUInt32;
+    std::array<uint32_t, 4> m_typeUInt64;
+    std::array<uint32_t, 4> m_typeFloat16;
+    std::array<uint32_t, 4> m_typeFloat32;
+    std::array<uint32_t, 4> m_typeFloat64;
+
     std::unordered_set<uint32_t> m_lateConsts;
 
     std::vector<uint32_t> m_interfaceVars;
 
+    uint32_t defTypeCached(
+            uint32_t&               cache,
+            spv::Op                 op,
+            uint32_t                argCount,
+      const uint32_t*               argIds);
+    
     uint32_t defTypeUnique(
             spv::Op                 op,
             uint32_t                argCount,
